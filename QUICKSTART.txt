@@ -1,0 +1,28 @@
+PointsWoman 0.2 — macOS / Apple Silicon
+
+GUI: Open PointsWoman.app. Choose physical interface (usually Wi-Fi en0).
+Applications: Add apps, quit selected app normally, then Launch Direct.
+Websites: Start proxy only to test; Enable for network applies PAC with administrator approval.
+Default websites: chat.example.com, app.example.com.
+
+CLI: Double-click Install CLI.command, then run pointswoman --help.
+  pointswoman serve-apps --interface en0
+In a second terminal:
+  pointswoman apps launch --app /Applications/Mattermost.app
+
+For websites:
+  pointswoman serve --interface en0
+In a second terminal:
+  pointswoman apply --service Wi-Fi
+  pointswoman restore
+Restore before stopping the proxy. Ctrl-C stops the CLI foreground proxy.
+
+Recovery: Reopen app and Restore settings & stop, or run Restore PointsWoman.command.
+GUI normal Quit restores its saved network preferences. Closing window keeps it running.
+After stopping app proxy, quit and reopen launched apps normally to clear launch flags.
+
+Supports HTTP, HTTPS and WebSocket proxy traffic in supported Chromium/Electron apps.
+Orion and Safari use website rules. No universal arbitrary-app traffic capture or UDP/calls.
+No TLS decryption. System DNS unchanged. No paid Apple Developer account required.
+Test VPN clients separately. Never connect V2Box and OpenVPN simultaneously.
+See included README.md and TEST-RESULTS.md for details and limits.
