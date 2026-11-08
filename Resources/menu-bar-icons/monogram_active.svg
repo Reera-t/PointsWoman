@@ -1,9 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="18" height="18" fill="none">
-
-  <!-- P Stem & Loop -->
-  <path d="M3 14.5 L3 4.5 C3 4.5 7.5 4 7.5 7.5 C7.5 10 3 9.5 3 9.5" stroke="#E04E39" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Diverging W route -->
-  <path d="M7.5 9.5 L9.5 14.5 L11.5 9.5 L13.5 14.5 L15.5 8.5" stroke="#E04E39" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <polyline points="14 8.5 15.5 8.5 15.5 10" stroke="#E04E39" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-
+  <!-- Origin Node in Electric Cyan -->
+  <circle cx="3.2" cy="12.8" r="1.3" fill="#06B6D4"/>
+  <!-- P Stem & Loop in Electric Cyan -->
+  <path d="M3.2 12.8 V4.8 C3.2 4.8 7.8 4.8 7.8 7.2 C7.8 9.5 3.2 9.5 3.2 9.5" 
+        stroke="#06B6D4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- W Routing Wave in Neon Magenta -->
+  <path d="M5.6 9.5 C6.2 9.5 7.0 13.2 7.8 13.2 C8.6 13.2 9.2 8.8 10.0 8.8 C10.8 8.8 11.4 13.2 12.2 13.2 C13.0 13.2 13.8 7.5 14.8 5.5" 
+        stroke="#EC4899" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Terminal Arrowhead in Electric Cyan -->
+  <polyline points="12.4 5.5 14.8 5.5 14.8 7.9" 
+            stroke="#06B6D4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

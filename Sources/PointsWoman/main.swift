@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 import UniformTypeIdentifiers
 import PointsWomanCore
 
@@ -305,11 +306,94 @@ struct MainView: View {
     }
 }
 
+func makePWMonogramMenuBarImage(active: Bool) -> NSImage {
+    let img = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
+        let ctx = NSGraphicsContext.current?.cgContext
+        ctx?.setAllowsAntialiasing(true)
+        ctx?.setShouldAntialias(true)
+
+        let pStroke: NSColor
+        let wStroke: NSColor
+        let nodeColor: NSColor
+        let arrowColor: NSColor
+
+        if !active {
+            let c = NSColor.black
+            pStroke = c
+            wStroke = c
+            nodeColor = c
+            arrowColor = c
+        } else {
+            // Midnight Obsidian / Cyber Cyan & Neon Magenta active state
+            pStroke = NSColor(calibratedRed: 0.08, green: 0.78, blue: 0.92, alpha: 1.0)
+            wStroke = NSColor(calibratedRed: 0.96, green: 0.28, blue: 0.68, alpha: 1.0)
+            nodeColor = pStroke
+            arrowColor = wStroke
+        }
+
+        // P Stem & Loop
+        let pPath = NSBezierPath()
+        pPath.move(to: NSPoint(x: 3.2, y: 5.2))
+        pPath.line(to: NSPoint(x: 3.2, y: 13.2))
+        pPath.curve(to: NSPoint(x: 3.2, y: 9.2),
+                    controlPoint1: NSPoint(x: 8.0, y: 13.2),
+                    controlPoint2: NSPoint(x: 8.0, y: 9.2))
+        pPath.line(to: NSPoint(x: 3.2, y: 9.2))
+        pPath.lineWidth = 1.6
+        pPath.lineCapStyle = .round
+        pPath.lineJoinStyle = .round
+        pStroke.setStroke()
+        pPath.stroke()
+
+        // Origin Node circle
+        let node = NSBezierPath(ovalIn: NSRect(x: 1.9, y: 3.9, width: 2.6, height: 2.6))
+        nodeColor.setFill()
+        node.fill()
+
+        // W Path
+        let wPath = NSBezierPath()
+        wPath.move(to: NSPoint(x: 5.6, y: 9.2))
+        wPath.curve(to: NSPoint(x: 7.8, y: 4.8),
+                    controlPoint1: NSPoint(x: 6.2, y: 9.2),
+                    controlPoint2: NSPoint(x: 7.0, y: 4.8))
+        wPath.curve(to: NSPoint(x: 10.0, y: 9.2),
+                    controlPoint1: NSPoint(x: 8.6, y: 4.8),
+                    controlPoint2: NSPoint(x: 9.2, y: 9.2))
+        wPath.curve(to: NSPoint(x: 12.2, y: 4.8),
+                    controlPoint1: NSPoint(x: 10.8, y: 9.2),
+                    controlPoint2: NSPoint(x: 11.4, y: 4.8))
+        wPath.curve(to: NSPoint(x: 14.8, y: 12.5),
+                    controlPoint1: NSPoint(x: 13.0, y: 4.8),
+                    controlPoint2: NSPoint(x: 13.8, y: 10.5))
+        wPath.lineWidth = 1.6
+        wPath.lineCapStyle = .round
+        wPath.lineJoinStyle = .round
+        wStroke.setStroke()
+        wPath.stroke()
+
+        // Arrowhead
+        let arrow = NSBezierPath()
+        arrow.move(to: NSPoint(x: 12.4, y: 12.5))
+        arrow.line(to: NSPoint(x: 15.0, y: 12.5))
+        arrow.line(to: NSPoint(x: 15.0, y: 9.9))
+        arrow.lineWidth = 1.5
+        arrow.lineCapStyle = .round
+        arrow.lineJoinStyle = .round
+        arrowColor.setStroke()
+        arrow.stroke()
+
+        return true
+    }
+    img.isTemplate = !active
+    return img
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
     var window: NSWindow!
     var statusItem: NSStatusItem!
     var finishing = false
+    var cancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let mainMenu = NSMenu()
@@ -332,7 +416,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
         window.center(); showWindow()
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "arrow.triangle.branch", accessibilityDescription: "PointsWoman")
+        statusItem.button?.image = makePWMonogramMenuBarImage(active: false)
+        cancellable = model.$running.receive(on: DispatchQueue.main).sink { [weak self] isRunning in
+            self?.statusItem.button?.image = makePWMonogramMenuBarImage(active: isRunning)
+        }
         let menu = NSMenu()
         let open = NSMenuItem(title: "Open PointsWoman", action: #selector(showWindow), keyEquivalent: "")
         open.target = self; menu.addItem(open)
