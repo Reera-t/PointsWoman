@@ -102,6 +102,11 @@ final class AppModel: ObservableObject {
             let appEngine = applications.isEmpty ? nil : ProxyServer(configuration: Configuration(interface: config.interface, port: appsPort), allowsAllDomains: true)
             try Storage.save(config, to: Storage.configURL)
             try Storage.save(ApplicationSettings(port: appsPort, applications: applications), to: ApplicationSettings.url)
+            for app in applications {
+                if app.bundleIdentifier.lowercased().contains("abdownloadmanager") {
+                    try? SelectedApplication.configureABDownloadManagerProxy(port: appsPort)
+                }
+            }
             try engine.start()
             do { try appEngine?.start() } catch { engine.stop(); throw error }
             applicationServer = appEngine

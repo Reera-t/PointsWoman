@@ -218,9 +218,9 @@ public struct ApplicationSettings: Codable, Equatable {
         guard application.supportsProxyLaunch else { _ = try application.launchArguments(port: port); return }
         if !applications.contains(where: { $0.path == application.path }) {
             applications.append(application)
-            if application.bundleIdentifier.lowercased().contains("abdownloadmanager") {
-                try? SelectedApplication.configureABDownloadManagerProxy(port: port)
-            }
+        }
+        if application.bundleIdentifier.lowercased().contains("abdownloadmanager") {
+            try? SelectedApplication.configureABDownloadManagerProxy(port: port)
         }
     }
     public static func discover() -> [SelectedApplication] {
