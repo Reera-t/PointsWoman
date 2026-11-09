@@ -194,13 +194,32 @@ final class AppModel: ObservableObject {
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.prompt = "Add applications"
         guard panel.runModal() == .OK else { return }
-        do {
-            var settings = ApplicationSettings(port: UInt16(appPort) ?? 17840, applications: applications)
-            for url in panel.urls { try settings.add(SelectedApplication.inspect(url.path)) }
-            try Storage.save(settings, to: ApplicationSettings.url)
-            applications = settings.applications
-            status = "Applications added. Start proxy, quit selected app normally, then choose Launch Direct."
-        } catch { status = error.localizedDescription }
+        var settings = (try? ApplicationSettings.load()) ?? ApplicationSettings(port: UInt16(appPort) ?? 17840, applications: applications)
+        settings.port = UInt16(appPort) ?? 17840
+        var addedNames: [String] = []
+        var skippedMessages: [String] = []
+        for url in panel.urls {
+            do {
+                let app = try SelectedApplication.inspect(url.path)
+                try settings.add(app)
+                addedNames.append(app.name)
+            } catch {
+                skippedMessages.append(error.localizedDescription)
+            }
+        }
+        if !addedNames.isEmpty {
+            do {
+                try Storage.save(settings, to: ApplicationSettings.url)
+                applications = settings.applications
+                if skippedMessages.isEmpty {
+                    status = "Added \(addedNames.joined(separator: ", ")). Quit app normally, then choose Launch Direct."
+                } else {
+                    status = "Added \(addedNames.joined(separator: ", ")). Note: \(skippedMessages.first ?? "")"
+                }
+            } catch { status = error.localizedDescription }
+        } else if let firstErr = skippedMessages.first {
+            status = firstErr
+        }
     }
     func removeApplication(_ app: SelectedApplication) {
         do {
@@ -214,7 +233,7 @@ final class AppModel: ObservableObject {
         guard let applicationServer else { return }
         do {
             try app.launchDirect(port: applicationServer.boundPort)
-            status = "Launched \(app.name) with direct HTTP/HTTPS/WebSocket proxy. Website rules do not limit this app. Calls and non-proxy traffic remain outside v1."
+            status = "Launched \(app.name) with direct physical interface proxy (\(app.adapterKindName ?? "proxy adapter"))."
         } catch { status = error.localizedDescription }
     }
 }
@@ -251,20 +270,26 @@ struct MainView: View {
                         TextField("17840", text: $model.appPort).frame(width: 70).disabled(model.running || model.busy)
                         Button("Add apps…") { model.addApplications() }.disabled(model.running || model.busy)
                     }
-                    if model.applications.isEmpty { Text("Add Mattermost, Chrome, or another supported Electron/Chromium app.").foregroundStyle(.secondary) }
+                    if model.applications.isEmpty { Text("Add ABDownloadManager, Chrome, Mattermost, or another supported app.").foregroundStyle(.secondary) }
                     ForEach(model.applications) { app in
                         HStack {
                             Image(nsImage: NSWorkspace.shared.icon(forFile: app.path)).resizable().frame(width: 25, height: 25)
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(app.name)
-                                Text("HTTP/HTTPS + WebSocket").font(.caption).foregroundStyle(.secondary)
+                                HStack(spacing: 4) {
+                                    if let adapter = app.adapterKindName {
+                                        Text(adapter).font(.caption2).padding(.horizontal, 4).padding(.vertical, 1)
+                                            .background(Color.blue.opacity(0.15)).cornerRadius(3)
+                                    }
+                                    Text("HTTP/HTTPS/WebSocket • Port \(model.appPort)").font(.caption).foregroundStyle(.secondary)
+                                }
                             }
                             Spacer()
                             Button("Launch Direct") { model.launchApplication(app) }.disabled(model.busy)
                             Button { model.removeApplication(app) } label: { Image(systemName: "minus.circle") }.disabled(model.running || model.busy)
                         }
                     }
-                    Text("Quit app normally before Launch Direct. Supported proxy launch adapters only; Orion uses website rules below. Other traffic, including calls/UDP, is unchanged.")
+                    Text("Quit app normally before Launch Direct. Supported: Chromium, Electron, Java/JVM (ABDownloadManager). Website rules handle Safari/Orion above.")
                         .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }.padding(5)
             }

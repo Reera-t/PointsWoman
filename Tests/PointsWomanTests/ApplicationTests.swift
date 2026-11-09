@@ -13,6 +13,18 @@ final class ApplicationTests {
             XCTAssertTrue(app.supportsProxyLaunch)
         }
     }
+    func testJavaAdapterAndArguments() throws {
+        try withApp(identifier: "com.abdownloadmanager.desktop", java: true) { app in
+            XCTAssertTrue(app.supportsProxyLaunch)
+            XCTAssertEqual(app.adapterKindName, "Java / JVM")
+            let args = try app.launchArguments(port: 17840)
+            XCTAssertTrue(args.contains("-Dhttp.proxyHost=127.0.0.1"))
+            XCTAssertTrue(args.contains("-Dhttp.proxyPort=17840"))
+            let env = app.launchEnvironment(port: 17840)
+            XCTAssertEqual(env["http_proxy"], "http://127.0.0.1:17840")
+            XCTAssertTrue(env["JAVA_TOOL_OPTIONS"]?.contains("-Dhttp.proxyHost=127.0.0.1") ?? false)
+        }
+    }
     func testUnsupportedAppsRejectedWithoutSaving() throws {
         try withApp(identifier: "com.test.nonproxy") { app in
             XCTAssertFalse(app.supportsProxyLaunch)
@@ -42,7 +54,7 @@ final class ApplicationTests {
             XCTAssertThrowsError(try app.launchArguments(port: 17840))
         }
     }
-    private func withApp(identifier: String, electron: Bool = false, body: (SelectedApplication) throws -> Void) throws {
+    private func withApp(identifier: String, electron: Bool = false, java: Bool = false, body: (SelectedApplication) throws -> Void) throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
         let app = root.appendingPathComponent("Example.app")
@@ -54,6 +66,7 @@ final class ApplicationTests {
         let plist: [String: Any] = ["CFBundleIdentifier": identifier, "CFBundleName": "Example", "CFBundleExecutable": "Example", "CFBundlePackageType": "APPL"]
         try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(to: contents.appendingPathComponent("Info.plist"))
         if electron { try FileManager.default.createDirectory(at: contents.appendingPathComponent("Frameworks/Electron Framework.framework"), withIntermediateDirectories: true) }
+        if java { try FileManager.default.createDirectory(at: contents.appendingPathComponent("runtime"), withIntermediateDirectories: true) }
         try body(SelectedApplication.inspect(app.path))
     }
 }

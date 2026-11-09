@@ -52,6 +52,7 @@ let checks: [(String, () throws -> Void)] = [
     ("Existing recovery snapshot protected", recovery.testExistingSnapshotPreventsOverwrite),
     ("Chromium proxy adapter", applications.testChromiumAdapterAndArguments),
     ("Electron proxy adapter", applications.testElectronDetection),
+    ("Java proxy adapter", applications.testJavaAdapterAndArguments),
     ("Unsupported apps refused", applications.testUnsupportedAppsRejectedWithoutSaving),
     ("App selection persistence and deduplication", applications.testApplicationSettingsRoundTripAndDeduplication),
     ("Invalid app bundles", applications.testInvalidApplicationRejected),
