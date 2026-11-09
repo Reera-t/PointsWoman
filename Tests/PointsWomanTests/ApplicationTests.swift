@@ -25,8 +25,21 @@ final class ApplicationTests {
             XCTAssertTrue(env["JAVA_TOOL_OPTIONS"]?.contains("-Dhttp.proxyHost=127.0.0.1") ?? false)
         }
     }
-    func testUnsupportedAppsRejectedWithoutSaving() throws {
-        try withApp(identifier: "com.test.nonproxy") { app in
+    func testUniversalAdapterAndArguments() throws {
+        try withApp(identifier: "com.bluestacks.BlueStacks") { app in
+            XCTAssertTrue(app.supportsProxyLaunch)
+            XCTAssertEqual(app.adapterKindName, "Universal / Env")
+            var settings = ApplicationSettings()
+            try settings.add(app)
+            XCTAssertEqual(settings.applications.count, 1)
+            let args = try app.launchArguments(port: 17840)
+            XCTAssertEqual(args, ["--proxy-server=http://127.0.0.1:17840"])
+            let env = app.launchEnvironment(port: 17840)
+            XCTAssertEqual(env["http_proxy"], "http://127.0.0.1:17840")
+        }
+    }
+    func testVPNClientRejectedWithoutSaving() throws {
+        try withApp(identifier: "net.openvpn.connect", electron: true) { app in
             XCTAssertFalse(app.supportsProxyLaunch)
             var settings = ApplicationSettings()
             XCTAssertThrowsError(try settings.add(app))

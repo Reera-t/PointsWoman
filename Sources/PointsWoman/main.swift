@@ -270,7 +270,7 @@ struct MainView: View {
                         TextField("17840", text: $model.appPort).frame(width: 70).disabled(model.running || model.busy)
                         Button("Add apps…") { model.addApplications() }.disabled(model.running || model.busy)
                     }
-                    if model.applications.isEmpty { Text("Add ABDownloadManager, Chrome, Mattermost, or another supported app.").foregroundStyle(.secondary) }
+                    if model.applications.isEmpty { Text("Add ABDownloadManager, BlueStacks, Chrome, Mattermost, or any app.").foregroundStyle(.secondary) }
                     ForEach(model.applications) { app in
                         HStack {
                             Image(nsImage: NSWorkspace.shared.icon(forFile: app.path)).resizable().frame(width: 25, height: 25)
@@ -281,7 +281,7 @@ struct MainView: View {
                                         Text(adapter).font(.caption2).padding(.horizontal, 4).padding(.vertical, 1)
                                             .background(Color.blue.opacity(0.15)).cornerRadius(3)
                                     }
-                                    Text("HTTP/HTTPS/WebSocket • Port \(model.appPort)").font(.caption).foregroundStyle(.secondary)
+                                    Text("Direct physical interface bypass • Port \(model.appPort)").font(.caption).foregroundStyle(.secondary)
                                 }
                             }
                             Spacer()
@@ -289,7 +289,7 @@ struct MainView: View {
                             Button { model.removeApplication(app) } label: { Image(systemName: "minus.circle") }.disabled(model.running || model.busy)
                         }
                     }
-                    Text("Quit app normally before Launch Direct. Supported: Chromium, Electron, Java/JVM (ABDownloadManager). Website rules handle Safari/Orion above.")
+                    Text("All apps supported (Chromium, Electron, Java/JVM, Universal). In-app manual proxy: HTTP 127.0.0.1:\(model.appPort). For ABDownloadManager, config is auto-applied.")
                         .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }.padding(5)
             }
@@ -316,6 +316,10 @@ struct MainView: View {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString("http://127.0.0.1:\(model.port)/proxy.pac", forType: .string)
                 }.disabled(!model.running)
+                Button("Copy App Proxy (Port \(model.appPort))") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString("127.0.0.1:\(model.appPort)", forType: .string)
+                }
             }
             VStack(alignment: .leading, spacing: 7) {
                 Text(model.status).font(.callout).fixedSize(horizontal: false, vertical: true).textSelection(.enabled)

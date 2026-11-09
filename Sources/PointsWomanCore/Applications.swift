@@ -35,6 +35,7 @@ public struct SelectedApplication: Codable, Equatable, Identifiable {
         return FileManager.default.fileExists(atPath: url.appendingPathComponent("Contents/runtime").path)
             || FileManager.default.fileExists(atPath: url.appendingPathComponent("Contents/app").path)
             || FileManager.default.fileExists(atPath: url.appendingPathComponent("Contents/Java").path)
+            || bundleIdentifier.lowercased().contains("abdownloadmanager")
     }
 
     public static func inspect(_ path: String) throws -> SelectedApplication {
@@ -50,7 +51,7 @@ public struct SelectedApplication: Codable, Equatable, Identifiable {
             ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? url.deletingPathExtension().lastPathComponent
         let identity = (identifier + " " + name).lowercased()
 
-        let networkClient = ["vpn", "forticlient", "fortinet", "v2box", "hiddify", "clash", "windscribe", "streisand", "pointswoman"]
+        let networkClient = ["vpn", "forticlient", "fortinet", "v2box", "hiddify", "clash", "windscribe", "streisand", "pointswoman", "sing-box", "openvpn", "wireguard", "tailscale"]
             .contains(where: { identity.contains($0) }) || name.lowercased() == "happ"
 
         // 1. Chromium detection (Chrome, Canary, Chromium, Brave, Edge, Arc, Vivaldi, Opera, CEF)
@@ -76,7 +77,7 @@ public struct SelectedApplication: Codable, Equatable, Identifiable {
         let hasRuntime = FileManager.default.fileExists(atPath: url.appendingPathComponent("Contents/runtime").path)
         let hasAppFolder = FileManager.default.fileExists(atPath: url.appendingPathComponent("Contents/app").path)
         let hasJavaFolder = FileManager.default.fileExists(atPath: url.appendingPathComponent("Contents/Java").path)
-        let isJava = hasRuntime || hasAppFolder || hasJavaFolder
+        let isJava = hasRuntime || hasAppFolder || hasJavaFolder || identifier.lowercased().contains("abdownloadmanager")
 
         let adapter: String?
         if networkClient {
@@ -88,10 +89,10 @@ public struct SelectedApplication: Codable, Equatable, Identifiable {
         } else if isJava {
             adapter = "Java / JVM"
         } else {
-            adapter = nil
+            adapter = "Universal / Env"
         }
 
-        let supported = !networkClient && (isChromium || isElectron || isJava)
+        let supported = !networkClient
 
         return SelectedApplication(
             path: url.path,
@@ -104,9 +105,9 @@ public struct SelectedApplication: Codable, Equatable, Identifiable {
 
     public func launchArguments(port: UInt16) throws -> [String] {
         guard supportsProxyLaunch else {
-            throw PWError.message("\(name) has no supported proxy launch adapter. Use website rules for Orion/Safari; arbitrary app capture needs a signed Network Extension.")
+            throw PWError.message("\(name) is a VPN/network tunnel client and cannot be routed through PointsWoman loopback without routing loops.")
         }
-        if adapterKindName == "Java / JVM" || isJavaApplication {
+        if adapterKindName == "Java / JVM" || isJavaApplication || bundleIdentifier.lowercased().contains("abdownloadmanager") {
             return [
                 "-Dhttp.proxyHost=127.0.0.1",
                 "-Dhttp.proxyPort=\(port)",
@@ -127,12 +128,38 @@ public struct SelectedApplication: Codable, Equatable, Identifiable {
             "HTTPS_PROXY": "http://127.0.0.1:\(port)",
             "ALL_PROXY": "http://127.0.0.1:\(port)"
         ]
-        if adapterKindName == "Java / JVM" || isJavaApplication {
+        if adapterKindName == "Java / JVM" || isJavaApplication || bundleIdentifier.lowercased().contains("abdownloadmanager") {
             let jvmFlags = "-Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=\(port) -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=\(port)"
             env["JAVA_TOOL_OPTIONS"] = jvmFlags
             env["_JAVA_OPTIONS"] = jvmFlags
         }
         return env
+    }
+
+    public static func configureABDownloadManagerProxy(port: UInt16) throws {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let configDir = home.appendingPathComponent(".abdm/config")
+        try FileManager.default.createDirectory(at: configDir, withIntermediateDirectories: true)
+        let proxyFile = configDir.appendingPathComponent("proxySettings.json")
+        let json = """
+        {
+            "proxyMode": "manual",
+            "proxyWithRules": {
+                "proxy": {
+                    "type": "http",
+                    "host": "127.0.0.1",
+                    "port": \(port),
+                    "username": null,
+                    "password": null
+                },
+                "rules": {
+                    "excludeURLPatterns": []
+                }
+            },
+            "pac": null
+        }
+        """
+        try Data(json.utf8).write(to: proxyFile)
     }
 
     public func launchDirect(port: UInt16) throws {
@@ -141,8 +168,23 @@ public struct SelectedApplication: Codable, Equatable, Identifiable {
             throw PWError.message("Application identity changed. Remove and add it again.")
         }
         let arguments = try current.launchArguments(port: port)
-        guard NSRunningApplication.runningApplications(withBundleIdentifier: current.bundleIdentifier).isEmpty else {
-            throw PWError.message("Quit \(current.name) normally first, then launch it from PointsWoman. Running apps cannot receive new proxy launch options.")
+
+        let running = NSRunningApplication.runningApplications(withBundleIdentifier: current.bundleIdentifier)
+        if !running.isEmpty {
+            for app in running {
+                app.terminate()
+            }
+            let deadline = Date().addingTimeInterval(1.2)
+            while Date() < deadline && !NSRunningApplication.runningApplications(withBundleIdentifier: current.bundleIdentifier).isEmpty {
+                Thread.sleep(forTimeInterval: 0.1)
+            }
+            if !NSRunningApplication.runningApplications(withBundleIdentifier: current.bundleIdentifier).isEmpty {
+                throw PWError.message("Quit \(current.name) first, then launch it from PointsWoman so proxy launch flags take effect.")
+            }
+        }
+
+        if current.bundleIdentifier.lowercased().contains("abdownloadmanager") {
+            try? Self.configureABDownloadManagerProxy(port: port)
         }
 
         var openCommand: [String] = []
@@ -174,7 +216,12 @@ public struct ApplicationSettings: Codable, Equatable {
     }
     public mutating func add(_ application: SelectedApplication) throws {
         guard application.supportsProxyLaunch else { _ = try application.launchArguments(port: port); return }
-        if !applications.contains(where: { $0.path == application.path }) { applications.append(application) }
+        if !applications.contains(where: { $0.path == application.path }) {
+            applications.append(application)
+            if application.bundleIdentifier.lowercased().contains("abdownloadmanager") {
+                try? SelectedApplication.configureABDownloadManagerProxy(port: port)
+            }
+        }
     }
     public static func discover() -> [SelectedApplication] {
         let roots = [URL(fileURLWithPath: "/Applications"), FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications")]
